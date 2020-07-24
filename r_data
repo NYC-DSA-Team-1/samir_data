@@ -1,0 +1,103 @@
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+
+#process the data
+
+#complete data + mean price + month label + filtered out non-new items
+data.complete <- read_csv("data_cleaned2.csv") %>%
+  mutate(meanprice = ((pricesamountMax + pricesamountMin)/2)) %>%
+  mutate(month.dateadded = month(dateAdded, label = TRUE, abbr = TRUE)) %>%
+  filter(!(pricescondition %in% c("Seller refurbished", "refurbished", "Refurbished", "Manufacturer refurbished", "pre-owned", "Used")))
+
+#data only with TVs as category
+data.tvs <- read_csv("data_cleaned3.csv") %>%
+  mutate(month.dateadded = month(dateAdded, label = TRUE, abbr = TRUE)) %>%
+  mutate(meanprice = ((pricesamountMax + pricesamountMin)/2))
+
+#monthly behavior
+data.complete %>% ggplot(aes(month.dateadded, fill = pricesisSale)) + 
+  geom_bar(position = "dodge", alpha = 0.5) + 
+  labs(x = "Months", y = "# Items", title = "Number of Items for Sale per Month") + 
+  scale_fill_brewer(name = "Sale", labels = c("Full Price", "Sale Price"), palette = "Set1")
+
+##VENDOR GRAPHS
+#mean pricing by vendor
+data.complete %>% 
+  filter(., Vendor != "other") %>%
+  ggplot(aes(Vendor, meanprice, color = Vendor))+ 
+  geom_boxplot(aes(fill = Vendor, alpha = 0.01)) + 
+  coord_flip() + theme_minimal() + 
+  scale_y_continuous(limits = c(0,600)) +
+  theme(axis.text.x = element_text(angle = 35, hjust = 1), legend.position = "none") + 
+  labs(title = "Pricing Distribution by Vendor" , x = "Vendor", y = "Prices")
+
+#mean pricing by monthly vendor 
+data.complete %>%
+  filter(., Vendor != "other") %>%
+  ggplot(aes(meanprice, color = Vendor)) + 
+  geom_freqpoly() + 
+  scale_x_continuous(limits = c(0,1500)) + 
+  labs(title = "Monthly Distribution of Pricing by Vendor", x = "Mean Price", y = "Count") + 
+  facet_wrap(~Month)
+
+# number of items on sale per month by vendor 
+data.complete%>% 
+  filter(., Vendor != "other") %>%
+  ggplot(aes(month.dateadded, fill = pricesisSale)) + 
+  geom_bar() + 
+  labs(x = "Months", y = "# Items", title = "Number of Items for Sale per Month") + 
+  scale_fill_brewer(name = "Sale", labels = c("Full Price", "Sale Price"), palette = "Set1") +
+  facet_wrap(~Vendor)
+
+##LG, SAMSUNG, SONY GRAPHS
+#mean pricing distribution (all product types) of three major brands
+data.complete %>% 
+  filter(., brand %in% c("LG", "Samsung", "Sony")) %>%
+  ggplot(aes(brand, meanprice, color = brand))+ 
+  geom_boxplot(aes(fill = brand, alpha = 0.01)) + 
+  scale_y_continuous(limits = c(0,1500)) + 
+  coord_flip() + theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 35, hjust = 1), legend.position = "none") + 
+  labs(title = "Pricing Distribution by Brand" , x = "Brand", y = "Prices") +
+  facet_wrap(~Month)
+
+data.complete %>%
+  filter(., brand %in% c("LG", "Samsung", "Sony")) %>%
+  ggplot(aes(meanprice, color = brand)) + 
+  geom_freqpoly() + 
+  scale_x_continuous(limits = c(0,1500)) + 
+  labs(title = "Monthly Distribution of Pricing by Brand", x = "Mean Price", y = "Count") + 
+  facet_wrap(~Month)
+
+
+#mean price of all products by month by brand
+data.complete %>% 
+  filter(., brand %in% c("LG", "Samsung", "Sony")) %>%
+  group_by(brand, month.dateadded, pricesisSale) %>%
+  summarize(meanprice = mean(meanprice)) %>%
+  ggplot(aes(x = month.dateadded, y = meanprice, fill = pricesisSale)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Monthly Mean Price of Products", x = "Mean Price", y = "Month") +
+  facet_wrap(~brand) + coord_flip()
+
+#monthly mean price of products JUST TVS
+data.tvs%>% 
+  filter(., brand %in% c("LG", "Samsung", "Sony")) %>%
+  ggplot(aes(brand, meanprice, color = brand))+ 
+  geom_boxplot(aes(fill = brand, alpha = 0.01)) + 
+  coord_flip() + theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 35, hjust = 1), legend.position = "none") + 
+  labs(title = "Monthly Mean Price of Products by Brand" , x = "Brand", y = "Prices") +
+  facet_wrap(~month.dateadded)
+
+#july mean price of products JUST TVS
+data.tvs %>% 
+  filter(., brand %in% c("LG", "Samsung", "Sony")) %>%
+  filter(., month.dateadded == "Jul") %>%
+  ggplot(aes(brand, meanprice, color = brand))+ 
+  geom_boxplot(aes(fill = brand, alpha = 0.01)) + 
+  coord_flip() + theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 35, hjust = 1), legend.position = "none") + 
+  labs(title = "July Mean Price of Products by Brand" , x = "Brand", y = "Prices")
+
